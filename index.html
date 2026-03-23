@@ -1,15 +1,11 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Neon Tic-Tac-Toe</title>
+    <title>Neon Tic-Tac-Toe</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             display: flex;
@@ -18,390 +14,268 @@
             min-height: 100vh;
             background: #0a0e27;
             font-family: 'Courier New', monospace;
-            color: #00ff9f;
+            color: #00e5ff;
         }
 
-        .container {
-            text-align: center;
-            padding: 20px;
-        }
+        .container { text-align: center; padding: 20px; }
 
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 10px;
-            color: #00ff9f;
-            text-shadow: 0 0 10px #00ff9f, 0 0 20px #00ff9f, 0 0 30px #0080ff;
-            letter-spacing: 2px;
-            animation: glow-pulse 2s ease-in-out infinite;
+            margin-bottom: 8px;
+            color: #00e5ff;
+            text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #7c4dff;
+            letter-spacing: 3px;
+            animation: title-glow 3s ease-in-out infinite;
         }
 
-        @keyframes glow-pulse {
-            0%, 100% {
-                text-shadow: 0 0 10px #00ff9f, 0 0 20px #00ff9f, 0 0 30px #0080ff;
-            }
-            50% {
-                text-shadow: 0 0 20px #00ff9f, 0 0 30px #00ff9f, 0 0 40px #0080ff, 0 0 50px #ff006e;
-            }
+        @keyframes title-glow {
+            0%, 100% { text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 40px #7c4dff; }
+            50% { text-shadow: 0 0 15px #00e5ff, 0 0 30px #00e5ff, 0 0 50px #7c4dff, 0 0 60px #ff006e; }
         }
 
-        .info {
+        .status {
             font-size: 1.2rem;
             margin-bottom: 20px;
-            color: #0080ff;
-            text-shadow: 0 0 5px #0080ff;
-            min-height: 24px;
+            color: #b388ff;
+            text-shadow: 0 0 8px #7c4dff;
+            min-height: 28px;
+            transition: color 0.3s;
         }
 
         .board {
             display: grid;
-            grid-template-columns: repeat(3, 100px);
-            grid-gap: 8px;
-            margin: 30px auto;
-            background: #0a0e27;
-            padding: 15px;
-            border: 2px solid #00ff9f;
-            border-radius: 10px;
-            box-shadow: 0 0 20px #00ff9f, 0 0 40px #0080ff, inset 0 0 20px rgba(0, 255, 159, 0.1);
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 324px;
+            margin: 0 auto 24px;
+            padding: 12px;
+            border: 2px solid #7c4dff;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(124, 77, 255, 0.4), 0 0 40px rgba(0, 229, 255, 0.15), inset 0 0 20px rgba(124, 77, 255, 0.1);
         }
 
         .cell {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #1a1f3a 0%, #0f1629 100%);
-            border: 2px solid #00ff9f;
-            border-radius: 5px;
-            font-size: 2.5rem;
+            width: 96px;
+            height: 96px;
+            background: linear-gradient(135deg, #141937 0%, #0d1126 100%);
+            border: 2px solid rgba(124, 77, 255, 0.5);
+            border-radius: 8px;
+            font-size: 2.8rem;
             font-weight: bold;
             cursor: pointer;
-            color: #00ff9f;
-            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-shadow: 0 0 10px #00ff9f;
-            box-shadow: 0 0 10px rgba(0, 255, 159, 0.3), inset 0 0 10px rgba(0, 255, 159, 0.1);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .cell:hover:not([data-filled]) {
-            background: linear-gradient(135deg, #2a2f4a 0%, #1f2639 100%);
-            box-shadow: 0 0 20px #00ff9f, 0 0 30px #0080ff, inset 0 0 15px rgba(0, 255, 159, 0.2);
-            color: #00ffff;
-            text-shadow: 0 0 15px #00ffff, 0 0 20px #0080ff;
+        .cell::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, rgba(0, 229, 255, 0.08) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.2s;
         }
 
-        .cell[data-filled] {
-            cursor: not-allowed;
-            box-shadow: 0 0 15px #00ff9f, inset 0 0 10px rgba(0, 255, 159, 0.2);
+        .cell:hover:not(.filled)::before { opacity: 1; }
+
+        .cell:hover:not(.filled) {
+            border-color: #00e5ff;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4), inset 0 0 10px rgba(0, 229, 255, 0.1);
         }
+
+        .cell.filled { cursor: default; }
 
         .cell.x {
             color: #ff006e;
-            text-shadow: 0 0 10px #ff006e, 0 0 20px #ff0055;
+            text-shadow: 0 0 10px #ff006e, 0 0 25px rgba(255, 0, 110, 0.5);
+            animation: place 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .cell.o {
-            color: #0080ff;
-            text-shadow: 0 0 10px #0080ff, 0 0 20px #005eff;
+            color: #00e5ff;
+            text-shadow: 0 0 10px #00e5ff, 0 0 25px rgba(0, 229, 255, 0.5);
+            animation: place 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        .cell.winner {
-            animation: winner-flash 0.6s ease-in-out 3;
-            border-color: #ffff00;
+        @keyframes place {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
-        @keyframes winner-flash {
-            0%, 100% {
-                text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
-            }
-            50% {
-                text-shadow: 0 0 20px currentColor, 0 0 30px currentColor, 0 0 40px #ffff00;
-                color: #ffff00;
-            }
+        .cell.win {
+            animation: win-flash 0.5s ease-in-out 3;
+            border-color: #ffea00;
+            box-shadow: 0 0 20px rgba(255, 234, 0, 0.5);
         }
 
-        .buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
-
-        button {
-            padding: 12px 25px;
-            font-size: 1rem;
-            font-family: 'Courier New', monospace;
-            background: #0a0e27;
-            color: #00ff9f;
-            border: 2px solid #00ff9f;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-shadow: 0 0 5px #00ff9f;
-            box-shadow: 0 0 10px rgba(0, 255, 159, 0.3);
-        }
-
-        button:hover {
-            background: rgba(0, 255, 159, 0.1);
-            box-shadow: 0 0 20px #00ff9f, 0 0 30px #0080ff;
-            color: #00ffff;
-            text-shadow: 0 0 10px #00ffff, 0 0 15px #00ff9f;
-        }
-
-        button:active {
-            transform: scale(0.98);
+        @keyframes win-flash {
+            0%, 100% { text-shadow: 0 0 10px currentColor, 0 0 25px currentColor; }
+            50% { text-shadow: 0 0 20px #ffea00, 0 0 40px #ffea00; color: #ffea00; }
         }
 
         .stats {
             display: flex;
-            gap: 30px;
+            gap: 32px;
             justify-content: center;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        .stat {
-            text-align: center;
+            margin-bottom: 24px;
         }
 
         .stat-label {
-            font-size: 0.9rem;
-            color: #0080ff;
-            text-shadow: 0 0 5px #0080ff;
-            margin-bottom: 5px;
+            font-size: 0.8rem;
+            color: #7c4dff;
+            text-shadow: 0 0 5px rgba(124, 77, 255, 0.5);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .stat-value {
             font-size: 1.8rem;
             font-weight: bold;
-            color: #00ff9f;
-            text-shadow: 0 0 10px #00ff9f;
         }
 
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.8rem;
-            }
+        .stat-value.x-color { color: #ff006e; text-shadow: 0 0 8px rgba(255, 0, 110, 0.5); }
+        .stat-value.o-color { color: #00e5ff; text-shadow: 0 0 8px rgba(0, 229, 255, 0.5); }
+        .stat-value.d-color { color: #b388ff; text-shadow: 0 0 8px rgba(179, 136, 255, 0.5); }
 
-            .board {
-                grid-template-columns: repeat(3, 80px);
-                grid-gap: 6px;
-                padding: 10px;
-            }
+        .buttons { display: flex; gap: 12px; justify-content: center; }
 
-            .cell {
-                width: 80px;
-                height: 80px;
-                font-size: 2rem;
-            }
+        button {
+            padding: 10px 24px;
+            font-size: 0.95rem;
+            font-family: 'Courier New', monospace;
+            background: transparent;
+            color: #00e5ff;
+            border: 2px solid #00e5ff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
+        }
 
-            button {
-                padding: 10px 20px;
-                font-size: 0.9rem;
-            }
+        button:hover {
+            background: rgba(0, 229, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+        }
 
-            .stat-value {
-                font-size: 1.5rem;
-            }
+        button:active { transform: scale(0.97); }
+
+        button.danger {
+            color: #ff006e;
+            border-color: rgba(255, 0, 110, 0.5);
+            text-shadow: 0 0 5px rgba(255, 0, 110, 0.3);
+        }
+
+        button.danger:hover {
+            background: rgba(255, 0, 110, 0.1);
+            border-color: #ff006e;
+            box-shadow: 0 0 15px rgba(255, 0, 110, 0.3);
+        }
+
+        @media (max-width: 420px) {
+            h1 { font-size: 1.8rem; }
+            .board { width: 264px; }
+            .cell { width: 76px; height: 76px; font-size: 2.2rem; }
+            .stats { gap: 20px; }
+            .stat-value { font-size: 1.4rem; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>NEON TIC-TAC-TOE</h1>
-        <div class="info" id="info">Press Start to Begin</div>
-        
-        <div class="board" id="board">
-            <div class="cell" data-index="0"></div>
-            <div class="cell" data-index="1"></div>
-            <div class="cell" data-index="2"></div>
-            <div class="cell" data-index="3"></div>
-            <div class="cell" data-index="4"></div>
-            <div class="cell" data-index="5"></div>
-            <div class="cell" data-index="6"></div>
-            <div class="cell" data-index="7"></div>
-            <div class="cell" data-index="8"></div>
-        </div>
-
+        <h1>TIC-TAC-TOE</h1>
+        <div class="status" id="status">X's turn</div>
+        <div class="board" id="board"></div>
         <div class="stats">
-            <div class="stat">
-                <div class="stat-label">X Wins</div>
-                <div class="stat-value" id="xWins">0</div>
+            <div>
+                <div class="stat-label">X wins</div>
+                <div class="stat-value x-color" id="xWins">0</div>
             </div>
-            <div class="stat">
+            <div>
                 <div class="stat-label">Draws</div>
-                <div class="stat-value" id="draws">0</div>
+                <div class="stat-value d-color" id="draws">0</div>
             </div>
-            <div class="stat">
-                <div class="stat-label">O Wins</div>
-                <div class="stat-value" id="oWins">0</div>
+            <div>
+                <div class="stat-label">O wins</div>
+                <div class="stat-value o-color" id="oWins">0</div>
             </div>
         </div>
-
         <div class="buttons">
-            <button id="startBtn">Start Game</button>
-            <button id="resetBtn">Reset Stats</button>
+            <button id="newGame">New Game</button>
+            <button id="resetStats" class="danger">Reset Stats</button>
         </div>
     </div>
 
     <script>
-        const WINNING_COMBINATIONS = [
-            [0, 1, 2],
-            [3, 4, 5],
-            [6, 7, 8],
-            [0, 3, 6],
-            [1, 4, 7],
-            [2, 5, 8],
-            [0, 4, 8],
-            [2, 4, 6]
-        ];
+        const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+        const board = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        let cells, state, turn, active;
 
-        let board = Array(9).fill(null);
-        let currentPlayer = 'X';
-        let gameActive = false;
-        let gameEnded = false;
-        let stats = {
-            xWins: 0,
-            draws: 0,
-            oWins: 0
-        };
+        const stats = JSON.parse(localStorage.getItem('ttt-stats') || '{"x":0,"o":0,"d":0}');
 
-        const cells = document.querySelectorAll('.cell');
-        const infoDiv = document.getElementById('info');
-        const startBtn = document.getElementById('startBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const xWinsDisplay = document.getElementById('xWins');
-        const drawsDisplay = document.getElementById('draws');
-        const oWinsDisplay = document.getElementById('oWins');
-
-        // Load stats from localStorage
-        function loadStats() {
-            const saved = localStorage.getItem('tictactoeStats');
-            if (saved) {
-                stats = JSON.parse(saved);
-                updateStatsDisplay();
-            }
+        function updateStats() {
+            document.getElementById('xWins').textContent = stats.x;
+            document.getElementById('oWins').textContent = stats.o;
+            document.getElementById('draws').textContent = stats.d;
+            localStorage.setItem('ttt-stats', JSON.stringify(stats));
         }
 
-        // Save stats to localStorage
-        function saveStats() {
-            localStorage.setItem('tictactoeStats', JSON.stringify(stats));
+        function init() {
+            board.innerHTML = Array(9).fill('<div class="cell"></div>').join('');
+            cells = board.querySelectorAll('.cell');
+            state = Array(9).fill('');
+            turn = 'X';
+            active = true;
+            statusEl.textContent = "X's turn";
+            statusEl.style.color = '#ff006e';
+            cells.forEach((c, i) => c.addEventListener('click', () => play(i)));
         }
 
-        // Update stats display
-        function updateStatsDisplay() {
-            xWinsDisplay.textContent = stats.xWins;
-            drawsDisplay.textContent = stats.draws;
-            oWinsDisplay.textContent = stats.oWins;
-        }
+        function play(i) {
+            if (!active || state[i]) return;
+            state[i] = turn;
+            cells[i].textContent = turn;
+            cells[i].classList.add(turn.toLowerCase(), 'filled');
 
-        // Check for winner
-        function checkWinner() {
-            for (let combo of WINNING_COMBINATIONS) {
-                const [a, b, c] = combo;
-                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                    return { winner: board[a], combo };
-                }
-            }
-            return null;
-        }
-
-        // Check for draw
-        function checkDraw() {
-            return board.every(cell => cell !== null);
-        }
-
-        // End game
-        function endGame(result) {
-            gameEnded = true;
-            gameActive = false;
-
-            if (result.winner) {
-                infoDiv.textContent = `🎉 Player ${result.winner} Wins!`;
-                if (result.winner === 'X') {
-                    stats.xWins++;
-                } else {
-                    stats.oWins++;
-                }
-                // Highlight winning cells
-                result.combo.forEach(index => {
-                    cells[index].classList.add('winner');
-                });
-            } else {
-                infoDiv.textContent = "🤝 It's a Draw!";
-                stats.draws++;
-            }
-
-            saveStats();
-            updateStatsDisplay();
-            startBtn.textContent = 'Play Again';
-        }
-
-        // Handle cell click
-        function handleCellClick(e) {
-            if (!gameActive || gameEnded) return;
-
-            const cell = e.target;
-            const index = parseInt(cell.dataset.index);
-
-            if (board[index] !== null) return;
-
-            board[index] = currentPlayer;
-            cell.textContent = currentPlayer;
-            cell.classList.add(currentPlayer.toLowerCase());
-            cell.dataset.filled = 'true';
-
-            // Check for winner
-            const result = checkWinner();
-            if (result) {
-                endGame(result);
+            const winCombo = WINS.find(([a,b,c]) => state[a] && state[a] === state[b] && state[a] === state[c]);
+            if (winCombo) {
+                active = false;
+                winCombo.forEach(j => cells[j].classList.add('win'));
+                statusEl.textContent = turn + ' wins!';
+                statusEl.style.color = '#ffea00';
+                stats[turn.toLowerCase()]++;
+                updateStats();
                 return;
             }
 
-            // Check for draw
-            if (checkDraw()) {
-                endGame({ winner: null });
+            if (state.every(s => s)) {
+                active = false;
+                statusEl.textContent = 'Draw!';
+                statusEl.style.color = '#b388ff';
+                stats.d++;
+                updateStats();
                 return;
             }
 
-            // Switch player
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            infoDiv.textContent = `Player ${currentPlayer}'s Turn`;
+            turn = turn === 'X' ? 'O' : 'X';
+            statusEl.textContent = turn + "'s turn";
+            statusEl.style.color = turn === 'X' ? '#ff006e' : '#00e5ff';
         }
 
-        // Start new game
-        function startNewGame() {
-            board = Array(9).fill(null);
-            currentPlayer = 'X';
-            gameActive = true;
-            gameEnded = false;
-            infoDiv.textContent = "Player X's Turn";
-            startBtn.textContent = 'Start Game';
+        document.getElementById('newGame').addEventListener('click', init);
+        document.getElementById('resetStats').addEventListener('click', function() {
+            stats.x = stats.o = stats.d = 0;
+            updateStats();
+            init();
+        });
 
-            cells.forEach(cell => {
-                cell.textContent = '';
-                cell.className = 'cell';
-                cell.dataset.filled = '';
-            });
-        }
-
-        // Reset stats
-        function resetStats() {
-            if (confirm('Are you sure? This will reset all statistics.')) {
-                stats = { xWins: 0, draws: 0, oWins: 0 };
-                saveStats();
-                updateStatsDisplay();
-                startNewGame();
-            }
-        }
-
-        // Event listeners
-        startBtn.addEventListener('click', startNewGame);
-        resetBtn.addEventListener('click', resetStats);
-        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
-
-        // Initialize
-        loadStats();
+        updateStats();
+        init();
     </script>
 </body>
 </html>
