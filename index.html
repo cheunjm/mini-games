@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PONG — Neon Edition</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e27;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 2rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #00fff2, #ff00e6, #b347ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(0, 255, 242, 0.5));
+  }
+
+  #scoreboard {
+    display: flex;
+    gap: 3rem;
+    font-size: 1.4rem;
+    margin-bottom: 0.8rem;
+    letter-spacing: 0.15em;
+  }
+
+  #scoreboard .player {
+    color: #00fff2;
+    text-shadow: 0 0 10px #00fff2, 0 0 20px #00fff2;
+  }
+
+  #scoreboard .ai {
+    color: #ff00e6;
+    text-shadow: 0 0 10px #ff00e6, 0 0 20px #ff00e6;
+  }
+
+  #highscore {
+    font-size: 0.75rem;
+    color: #b347ff;
+    margin-bottom: 0.6rem;
+    text-shadow: 0 0 6px #b347ff;
+    letter-spacing: 0.1em;
+  }
+
+  canvas {
+    border: 2px solid #1a1f4e;
+    border-radius: 4px;
+    box-shadow:
+      0 0 15px rgba(0, 255, 242, 0.15),
+      0 0 30px rgba(255, 0, 230, 0.1),
+      inset 0 0 60px rgba(0, 0, 0, 0.4);
+  }
+
+  #controls {
+    margin-top: 0.8rem;
+    font-size: 0.7rem;
+    color: #3a4070;
+    letter-spacing: 0.08em;
+  }
+
+  #overlay {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    pointer-events: none;
+  }
+
+  #overlay.active { pointer-events: auto; }
+
+  #overlay .message {
+    font-size: 1.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #00fff2;
+    text-shadow: 0 0 20px #00fff2, 0 0 40px #00fff2;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  #overlay.active .message { opacity: 1; }
+
+  #overlay .sub {
+    font-size: 0.8rem;
+    color: #b347ff;
+    text-shadow: 0 0 8px #b347ff;
+    opacity: 0;
+    transition: opacity 0.3s 0.15s;
+  }
+
+  #overlay.active .sub { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Pong</h1>
+<div id="scoreboard">
+  <span class="player">PLAYER <span id="p1score">0</span></span>
+  <span class="ai">AI <span id="p2score">0</span></span>
+</div>
+<div id="highscore">HIGH SCORE: <span id="hiscore">0</span></div>
+<canvas id="game"></canvas>
+<div id="controls">W / S — left paddle &nbsp;&nbsp;|&nbsp;&nbsp; ↑ / ↓ — right paddle &nbsp;&nbsp;|&nbsp;&nbsp; SPACE — start</div>
+
+<div id="overlay" class="active">
+  <div class="message" id="msg">PRESS SPACE</div>
+  <div class="sub" id="sub">to begin</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const msgEl = document.getElementById('msg');
+const subEl = document.getElementById('sub');
+const p1El = document.getElementById('p1score');
+const p2El = document.getElementById('p2score');
+const hiEl = document.getElementById('hiscore');
+
+// --- Responsive sizing ---
+function resize() {
+  const maxW = Math.min(window.innerWidth - 40, 900);
+  const maxH = Math.min(window.innerHeight - 220, 560);
+  const aspect = 900 / 560;
+  let w = maxW;
+  let h = w / aspect;
+  if (h > maxH) { h = maxH; w = h * aspect; }
+  canvas.width = Math.floor(w);
+  canvas.height = Math.floor(h);
+  overlay.style.width = canvas.width + 'px';
+  overlay.style.height = canvas.height + 'px';
+  overlay.style.left = canvas.offsetLeft + 'px';
+  overlay.style.top = canvas.offsetTop + 'px';
+}
+window.addEventListener('resize', resize);
+
+// --- Scale helper ---
+function s(v) { return v * (canvas.width / 900); }
+
+const WINNING_SCORE = 7;
+const BALL_SPEED_INIT = 5;
+const BALL_SPEED_INC = 0.3;
+const PADDLE_SPEED = 6;
+const AI_SPEED = 4.2;
+
+// --- State ---
+let state = 'idle';
+let scores = [0, 0];
+let highScore = parseInt(localStorage.getItem('pong_highscore') || '0', 10);
+hiEl.textContent = highScore;
+
+const keys = {};
+const ball = { x: 0, y: 0, vx: 0, vy: 0, r: 0 };
+const paddles = [
+  { x: 0, y: 0, w: 0, h: 0 },
+  { x: 0, y: 0, w: 0, h: 0 }
+];
+
+let particles = [];
+let trail = [];
+
+function resetPositions() {
+  const pw = s(12), ph = s(90);
+  paddles[0].w = pw; paddles[0].h = ph;
+  paddles[0].x = s(30); paddles[0].y = canvas.height / 2 - ph / 2;
+  paddles[1].w = pw; paddles[1].h = ph;
+  paddles[1].x = canvas.width - s(30) - pw; paddles[1].y = canvas.height / 2 - ph / 2;
+  ball.r = s(8);
+  ball.x = canvas.width / 2;
+  ball.y = canvas.height / 2;
+}
+
+function launchBall() {
+  const speed = s(BALL_SPEED_INIT);
+  const angle = (Math.random() * Math.PI / 3) - Math.PI / 6;
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  ball.vx = Math.cos(angle) * speed * dir;
+  ball.vy = Math.sin(angle) * speed;
+}
+
+function showOverlay(msg, sub) {
+  msgEl.textContent = msg;
+  subEl.textContent = sub;
+  overlay.classList.add('active');
+}
+
+function hideOverlay() {
+  overlay.classList.remove('active');
+}
+
+function startGame() {
+  scores = [0, 0];
+  p1El.textContent = '0';
+  p2El.textContent = '0';
+  resetPositions();
+  launchBall();
+  hideOverlay();
+  state = 'playing';
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.02 + Math.random() * 0.03,
+      color,
+      size: s(2) + Math.random() * s(3)
+    });
+  }
+}
+
+// --- Input ---
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (state === 'idle' || state === 'gameover') startGame();
+    else if (state === 'scored') {
+      resetPositions();
+      launchBall();
+      hideOverlay();
+      state = 'playing';
+    }
+  }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- Update ---
+function update() {
+  if (state !== 'playing') return;
+
+  const ps = s(PADDLE_SPEED);
+  const as = s(AI_SPEED);
+
+  // Player paddle (left)
+  if (keys['KeyW'] || keys['ArrowUp']) paddles[0].y -= ps;
+  if (keys['KeyS'] || keys['ArrowDown']) paddles[0].y += ps;
+  paddles[0].y = Math.max(0, Math.min(canvas.height - paddles[0].h, paddles[0].y));
+
+  // AI paddle (right)
+  const aiCenter = paddles[1].y + paddles[1].h / 2;
+  const diff = ball.y - aiCenter;
+  if (Math.abs(diff) > s(10)) {
+    paddles[1].y += Math.sign(diff) * Math.min(as, Math.abs(diff));
+  }
+  paddles[1].y = Math.max(0, Math.min(canvas.height - paddles[1].h, paddles[1].y));
+
+  // Ball movement
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Trail
+  trail.push({ x: ball.x, y: ball.y, life: 1 });
+
+  // Top/bottom walls
+  if (ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy *= -1; }
+  if (ball.y + ball.r >= canvas.height) { ball.y = canvas.height - ball.r; ball.vy *= -1; }
+
+  // Paddle collisions
+  for (let i = 0; i < 2; i++) {
+    const p = paddles[i];
+    if (
+      ball.x + ball.r > p.x && ball.x - ball.r < p.x + p.w &&
+      ball.y + ball.r > p.y && ball.y - ball.r < p.y + p.h
+    ) {
+      const hitY = (ball.y - (p.y + p.h / 2)) / (p.h / 2);
+      const angle = hitY * (Math.PI / 4);
+      const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy) + s(BALL_SPEED_INC);
+      const dir = i === 0 ? 1 : -1;
+      ball.vx = Math.cos(angle) * speed * dir;
+      ball.vy = Math.sin(angle) * speed;
+      ball.x = i === 0 ? p.x + p.w + ball.r : p.x - ball.r;
+
+      const color = i === 0 ? '#00fff2' : '#ff00e6';
+      spawnParticles(ball.x, ball.y, color, 12);
+    }
+  }
+
+  // Scoring
+  if (ball.x + ball.r < 0) { score(1); }
+  if (ball.x - ball.r > canvas.width) { score(0); }
+}
+
+function score(player) {
+  scores[player]++;
+  p1El.textContent = scores[0];
+  p2El.textContent = scores[1];
+
+  if (scores[0] > highScore) {
+    highScore = scores[0];
+    localStorage.setItem('pong_highscore', highScore);
+    hiEl.textContent = highScore;
+  }
+
+  if (scores[player] >= WINNING_SCORE) {
+    state = 'gameover';
+    const winner = player === 0 ? 'YOU WIN!' : 'AI WINS!';
+    showOverlay(winner, 'press space to play again');
+    spawnParticles(canvas.width / 2, canvas.height / 2, '#b347ff', 40);
+  } else {
+    state = 'scored';
+    showOverlay('SCORE!', 'press space to continue');
+    resetPositions();
+  }
+}
+
+// --- Draw ---
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#0a0e27';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Center line
+  ctx.setLineDash([s(8), s(10)]);
+  ctx.strokeStyle = '#1a1f4e';
+  ctx.lineWidth = s(2);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Trail
+  for (let i = trail.length - 1; i >= 0; i--) {
+    const t = trail[i];
+    t.life -= 0.06;
+    if (t.life <= 0) { trail.splice(i, 1); continue; }
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, ball.r * t.life * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(179, 71, 255, ${t.life * 0.3})`;
+    ctx.fill();
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.life -= p.decay;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Paddles
+  drawPaddle(paddles[0], '#00fff2');
+  drawPaddle(paddles[1], '#ff00e6');
+
+  // Ball
+  drawBall();
+}
+
+function drawPaddle(p, color) {
+  ctx.shadowColor = color;
+  ctx.shadowBlur = s(18);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(p.x, p.y, p.w, p.h, s(4));
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function drawBall() {
+  ctx.shadowColor = '#b347ff';
+  ctx.shadowBlur = s(25);
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, ball.r);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.5, '#b347ff');
+  grad.addColorStop(1, '#7b1fa2');
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+// --- Loop ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// --- Init ---
+resize();
+resetPositions();
+loop();
+
+requestAnimationFrame(() => {
+  overlay.style.left = canvas.offsetLeft + 'px';
+  overlay.style.top = canvas.offsetTop + 'px';
+});
+</script>
+</body>
+</html>
